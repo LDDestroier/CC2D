@@ -1,10 +1,24 @@
+local deriveControls = function(keyList)
+	return {
+		up = keyList[keys.up],
+		down = keyList[keys.down],
+		left = keyList[keys.left],
+		right = keyList[keys.right],
+		jump = keyList[keys.x],
+		slide = keyList[keys.c],
+		shoot = keyList[keys.z]
+	}
+end
+
+local config = {}
+config.downJumpSlide = true
+
 local game = {}
 game.path = fs.combine(fs.getDir(shell.getRunningProgram()),"data")
 game.apiPath = fs.combine(game.path, "api")
 game.spritePath = fs.combine(game.path, "sprites")
 game.mapPath = fs.combine(game.path, "maps")
 game.imagePath = fs.combine(game.path, "image")
-game.configPath = fs.combine(game.path, "config.cfg")
 
 local scr_x, scr_y = term.getSize()
 local mapname = "testmap"
@@ -17,7 +31,7 @@ local keysDown = {}
 
 local tsv = function(visible)
 	if term.current().setVisible then
-		term.current().setVisible(visible)
+		--term.current().setVisible(visible)
 	end
 end
 
@@ -85,7 +99,7 @@ local newPlayer = function(name, spriteset, x, y)
 		slideSpeed = 4,			-- speed of sliding
 		grounded = false,		-- is on solid ground
 		shots = 0,				-- how many shots onscreen
-		maxShots = 3,			-- maximum shots onscreen
+		maxShots = 5,			-- maximum shots onscreen
 		lemonSpeed = 3,			-- speed of megabuster shots
 		chargeLevel = 0,		-- current charged buster level
 		cycle = {				-- used for animation cycles
@@ -94,6 +108,7 @@ local newPlayer = function(name, spriteset, x, y)
 			shootHold = 0,			-- forces user to release then push shoot
 			stand = 0,				-- used for high-octane eye blinking action
 			slide = 0,				-- used to limit slide length
+			slideHold = 0,			-- used to prevent supersliding
 			jump = 0,				-- used to prevent auto-bunnyhopping
 			shootCharge = 0,		-- records how charged your megabuster is
 			ouch = 0,				-- records hitstun
@@ -138,16 +153,8 @@ local newPlayer = function(name, spriteset, x, y)
 	}
 end
 
-local deriveControls = function(keyList)
-	return {
-		up = keyList[keys.up],
-		down = keyList[keys.down],
-		left = keyList[keys.left],
-		right = keyList[keys.right],
-		jump = keyList[keys.x],
-		shoot = keyList[keys.z]
-	}
-end
+you = 1
+players[1] = newPlayer("LDD", "megaman", 40, 8)
 
 -- main colision function
 local isSolid = function(x, y)
@@ -173,13 +180,20 @@ local isPlayerTouchingSolid = function(player, xmod, ymod, ycutoff)
 			if isSolid(x + (xmod or 0), y + (ymod or 0)) then
 				return "map"
 			end
+			-- player/player collision doesn't work, alas
+			for num, p in pairs(players) do
+				if player ~= p then
+					if x >= p.x and y <= (p.xsize + p.x - 1) then
+						if y >= p.y and y <= (p.ysize + p.y - 1) then
+							--return "player"
+						end
+					end
+				end
+			end
 		end
 	end
 	return false
 end
-
-you = 1
-players[you] = newPlayer("LDD", "megaman", 40, 8)
 
 local movePlayer = function(player, x, y)
 	i = player.yvel / math.abs(player.yvel)
@@ -201,12 +215,14 @@ local movePlayer = function(player, x, y)
 			if player.grounded and not isPlayerTouchingSolid(player, i, -1) then -- upward slope detection
 				player.y = player.y - 1
 				player.x = player.x + i
-				grounded = true
 			else
 				player.xvel = 0
 				break
 			end
 		else
+			if player.grounded and (isPlayerTouchingSolid(player, i, 2) and not isPlayerTouchingSolid(player, i, 1)) then	-- downward slope detection
+				player.y = player.y + 1
+			end
 			player.x = player.x + i
 		end
 	end
@@ -251,10 +267,60 @@ local spawnProjectile = function(boolit, owner, x, y, xvel, yvel)
 		xvel = xvel,
 		yvel = yvel,
 		direction = xvel / math.abs(xvel),
-		life = 32,
+		life = 48,
 		cycle = 0,
 		phaze = false,
 	}
+end
+
+-- determines what sprite a player uses
+local determineSprite = function(player)
+	local output
+	player.xadj = 0
+	player.yadj = 0
+	if player.grounded then
+		if player.cycle.slide > 0 then
+			player.cycle.slide = math.max(player.cycle.slide - 1, isPlayerTouchingSolid(player, 0, 0, 0) and 1 or 0)
+			output = "slide"
+		else
+			if player.xvel == 0 then
+				player.cycle.run = -1
+				player.cycle.stand = (player.cycle.stand + 1) % 40
+				if player.cycle.shoot > 0 then
+					output = "shoot"
+					if player.direction == -1 then
+						player.xadj = -5
+					end
+				else
+					output = player.cycle.stand == 39 and "stand2" or "stand1"
+				end
+			else
+				if player.cycle.run == -1 and player.cycle.shoot == 0 then
+					player.cycle.run = 0
+					output = "walk0"
+				else
+					player.cycle.run = (player.cycle.run + 0.35) % 4
+					if player.cycle.shoot > 0 then
+						output = "walkshoot" .. (math.floor(player.cycle.run) + 1)
+					else
+						output = "walk" .. (math.floor(player.cycle.run) + 1)
+					end
+				end
+			end
+		end
+	else
+		player.cycle.slide = isPlayerTouchingSolid(player, 0, 0, 0) and 1 or 0
+		if player.cycle.shoot > 0 then
+			output = "jumpshoot"
+			if player.direction == -1 then
+				player.xadj = -1
+			end
+		else
+			output = "jump"
+		end
+	end
+	player.cycle.shoot = math.max(player.cycle.shoot - 1, 0)
+	return output
 end
 
 local moveTick = function()
@@ -269,9 +335,7 @@ local moveTick = function()
 		if player.control.jump then
 			if player.grounded then
 				if player.cycle.jump == 0 then
-					if player.control.down and player.cycle.slide == 0 then
-						player.cycle.slide = 6
-					elseif not isPlayerTouchingSolid(player, 0, -1, 0) then
+					if not (player.control.down and player.cycle.slide == 0) and not isPlayerTouchingSolid(player, 0, -1, 0) then
 						player.yvel = player.jumpHeight
 						player.cycle.slide = 0
 						player.grounded = false
@@ -285,9 +349,18 @@ local moveTick = function()
 		else
 			player.cycle.jump = 0
 		end
+		if player.cycle.slide == 0 then
+			if ((config.downJumpSlide and player.control.down and player.control.jump) or player.control.slide) then
+				if player.cycle.slideHold == 0 then
+					player.cycle.slide = 6
+					player.cycle.slideHold = 1
+				end
+			else
+				player.cycle.slideHold = 0
+			end
+		end
 
 		-- walking
-
 		if player.control.right then
 			player.direction = 1
 			player.xvel = player.moveSpeed
@@ -379,23 +452,25 @@ local moveTick = function()
 		end
 
 		movePlayer(player, xvel, yvel)
-
-		scrollX = player.x - math.floor(scr_x / 2) + math.floor(player.xsize / 2)
-		scrollY = player.y - math.floor(scr_y / 2) + math.floor(player.ysize / 2)
-
+		if num == you then
+			scrollX = player.x - math.floor(scr_x / 2) + math.floor(player.xsize / 2)
+			scrollY = player.y - math.floor(scr_y / 2) + math.floor(player.ysize / 2)
+		end
+		
 		-- projectile management
 
-		for i = #projectiles, 1, -1 do
-			projectiles[i].x = projectiles[i].x + projectiles[i].xvel
-			projectiles[i].y = projectiles[i].y + projectiles[i].yvel
-			projectiles[i].cycle = projectiles[i].cycle + 1
-			projectiles[i].life = projectiles[i].life - 1
-			if projectiles[i].life <= 0 then
-				table.remove(projectiles, i)
-				player.shots = player.shots - 1
-			end
+		player.sprite = determineSprite(player)
+		
+	end
+	for i = #projectiles, 1, -1 do
+		projectiles[i].x = projectiles[i].x + projectiles[i].xvel
+		projectiles[i].y = projectiles[i].y + projectiles[i].yvel
+		projectiles[i].cycle = projectiles[i].cycle + 1
+		projectiles[i].life = projectiles[i].life - 1
+		if projectiles[i].life <= 0 then
+			projectiles[i].owner.shots = projectiles[i].owner.shots - 1
+			table.remove(projectiles, i)
 		end
-
 	end
 end
 
@@ -403,9 +478,9 @@ local render = function()
 	tsv(false)
 	term.clear()
 	nfte.drawImage(maps[mapname], -scrollX + 1, -scrollY + 1)
+	term.setCursorPos(1,1)
 	for num,player in pairs(players) do
-		term.setCursorPos(1,num)
-		print("(" .. player.x .. ", " .. player.y .. ", " .. tostring(player.shots) .. ")")
+		print("(" .. player.x .. ", " .. player.y .. ")")
 		if player.direction == -1 then
 			nfte.drawImageTransparent(
 				nfte.colorSwap(
@@ -450,56 +525,6 @@ local render = function()
 	tsv(true)
 end
 
--- determines what sprite a player uses
-local determineSprite = function(player)
-	local output
-	player.xadj = 0
-	player.yadj = 0
-	if player.grounded then
-		if player.cycle.slide > 0 then
-			player.cycle.slide = math.max(player.cycle.slide - 1, isPlayerTouchingSolid(player, 0, 0, 0) and 1 or 0)
-			output = "slide"
-		else
-			if player.xvel == 0 then
-				player.cycle.run = -1
-				player.cycle.stand = (player.cycle.stand + 1) % 40
-				if player.cycle.shoot > 0 then
-					output = "shoot"
-					if player.direction == -1 then
-						player.xadj = -5
-					end
-				else
-					output = player.cycle.stand == 39 and "stand2" or "stand1"
-				end
-			else
-				if player.cycle.run == -1 and player.cycle.shoot == 0 then
-					player.cycle.run = 0
-					output = "walk0"
-				else
-					player.cycle.run = (player.cycle.run + 0.35) % 4
-					if player.cycle.shoot > 0 then
-						output = "walkshoot" .. (math.floor(player.cycle.run) + 1)
-					else
-						output = "walk" .. (math.floor(player.cycle.run) + 1)
-					end
-				end
-			end
-		end
-	else
-		player.cycle.slide = isPlayerTouchingSolid(player, 0, 0, 0) and 1 or 0
-		if player.cycle.shoot > 0 then
-			output = "jumpshoot"
-			if player.direction == -1 then
-				player.xadj = -1
-			end
-		else
-			output = "jump"
-		end
-	end
-	player.cycle.shoot = math.max(player.cycle.shoot - 1, 0)
-	return output
-end
-
 local getInput = function()
 	local evt
 	while true do
@@ -516,7 +541,6 @@ local main = function()
 	while true do
 		players[you].control = deriveControls(keysDown)
 		moveTick()
-		players[you].sprite = determineSprite(players[you])
 		render()
 		if keysDown[keys.q] then
 			return
