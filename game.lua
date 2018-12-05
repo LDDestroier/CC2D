@@ -1,3 +1,5 @@
+-- pastebin run W5ZkVYSi LDDestroier CC2D
+
 local deriveControls = function(keyList)
 	return {
 		up = keyList[keys.up],
