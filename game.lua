@@ -85,8 +85,8 @@ local newPlayer = function(name, spriteset, x, y)
 		spriteset = spriteset,	-- set of sprites to use
 		sprite = "stand",		-- current sprite
 		direction = 1,			-- 1 is right, -1 is left
-		xsize = 10,				-- hitbox x size
-		ysize = 8,				-- hitbox y size
+		xsize = 3,				-- hitbox x size
+		ysize = 5,				-- hitbox y size
 		x = x,					-- x position
 		y = y,					-- y position
 		xadj = 0,				-- adjust x for good looks
@@ -156,7 +156,7 @@ local newPlayer = function(name, spriteset, x, y)
 end
 
 you = 1
-players[1] = newPlayer("LDD", "megaman", 40, 8)
+players[1] = newPlayer("LDD", "small", 40, 8)
 
 -- main colision function
 local isSolid = function(x, y)
@@ -291,7 +291,7 @@ local determineSprite = function(player)
 				if player.cycle.shoot > 0 then
 					output = "shoot"
 					if player.direction == -1 then
-						player.xadj = -5
+						player.xadj = -1
 					end
 				else
 					output = player.cycle.stand == 39 and "stand2" or "stand1"
@@ -385,7 +385,7 @@ local moveTick = function()
 						bullet.lemon,
 						player,
 						player.x + player.xsize * player.direction,
-						player.y + 2,
+						player.y,
 						player.lemonSpeed * player.direction,
 						0
 					)
@@ -412,8 +412,8 @@ local moveTick = function()
 						spawnProjectile(
 							bullet.lemon3,
 							player,
-							player.x + math.max(0, player.direction * player.xsize),
-							player.y,
+							player.x + math.max(0, player.direction * (player.xsize - 1)),
+							player.y - 2,
 							player.lemonSpeed * player.direction,
 							0
 						)
@@ -422,7 +422,7 @@ local moveTick = function()
 							bullet.lemon2,
 							player,
 							player.x + math.max(0, player.direction * player.xsize),
-							player.y + 1,
+							player.y - 1,
 							player.lemonSpeed * player.direction,
 							0
 						)
@@ -458,11 +458,11 @@ local moveTick = function()
 			scrollX = player.x - math.floor(scr_x / 2) + math.floor(player.xsize / 2)
 			scrollY = player.y - math.floor(scr_y / 2) + math.floor(player.ysize / 2)
 		end
-		
+
 		-- projectile management
 
 		player.sprite = determineSprite(player)
-		
+
 	end
 	for i = #projectiles, 1, -1 do
 		projectiles[i].x = projectiles[i].x + projectiles[i].xvel
