@@ -156,7 +156,7 @@ local newPlayer = function(name, spriteset, x, y)
 end
 
 you = 1
-players[1] = newPlayer("LDD", "small", 40, 8)
+players[1] = newPlayer("LDD", "stickdude", 40, 8)
 
 -- main colision function
 local isSolid = function(x, y)
