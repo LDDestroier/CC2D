@@ -96,7 +96,8 @@ local newPlayer = function(name, spriteset, x, y)
 		maxVelocity = 8,		-- highest posible speed in any direction
 		jumpHeight = 2,			-- height of jump
 		jumpAssist = 0.5,		-- assists jump while in air
-		moveSpeed = 2,			-- speed of walking
+		moveSpeed = 1,			-- speed of walking
+		friction = 0.75,		-- speed of slowing down after walking, from 0-1
 		gravity = 0.75,			-- force of gravity
 		slideSpeed = 4,			-- speed of sliding
 		grounded = false,		-- is on solid ground
@@ -363,14 +364,13 @@ local moveTick = function()
 		end
 
 		-- walking
+		player.xvel = player.xvel * player.friction
 		if player.control.right then
 			player.direction = 1
-			player.xvel = player.moveSpeed
+			player.xvel = player.xvel + player.moveSpeed
 		elseif player.control.left then
 			player.direction = -1
-			player.xvel = -player.moveSpeed
-		else
-			player.xvel = 0
+			player.xvel = player.xvel - player.moveSpeed
 		end
 		if player.cycle.slide > 0 then
 			player.xvel = player.direction * player.slideSpeed
