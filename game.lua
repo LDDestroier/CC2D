@@ -327,7 +327,7 @@ local determineSprite = function(player)
 end
 
 local moveTick = function()
-	local i
+	local i, pwalkspeed
 	for num, player in pairs(players) do
 
 		-- falling
@@ -373,9 +373,12 @@ local moveTick = function()
 			player.xvel = player.xvel - player.moveSpeed
 		end
 		if player.cycle.slide > 0 then
+			pwalkspeed = pwalkspeed or player.xvel
 			player.xvel = player.direction * player.slideSpeed
+		else
+			player.xvel = pwalkspeed or player.xvel
+			pwalkspeed = nil
 		end
-
 		-- shooting
 
 		if player.control.shoot then
