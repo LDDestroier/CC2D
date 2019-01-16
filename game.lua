@@ -99,7 +99,7 @@ local newPlayer = function(name, spriteset, x, y)
 		moveSpeed = 1,			-- speed of walking
 		friction = 0.75,		-- speed of slowing down after walking, from 0-1
 		gravity = 0.75,			-- force of gravity
-		slideSpeed = 4,			-- speed of sliding
+		slideSpeed = 5,			-- speed of sliding
 		grounded = false,		-- is on solid ground
 		shots = 0,				-- how many shots onscreen
 		maxShots = 5,			-- maximum shots onscreen
@@ -186,7 +186,7 @@ local isPlayerTouchingSolid = function(player, xmod, ymod, ycutoff)
 			-- player/player collision doesn't work, alas
 			for num, p in pairs(players) do
 				if player ~= p then
-					if x >= p.x and y <= (p.xsize + p.x - 1) then
+					if x >= p.x and x <= (p.xsize + p.x - 1) then
 						if y >= p.y and y <= (p.ysize + p.y - 1) then
 							--return "player"
 						end
@@ -286,7 +286,7 @@ local determineSprite = function(player)
 			player.cycle.slide = math.max(player.cycle.slide - 1, isPlayerTouchingSolid(player, 0, 0, 0) and 1 or 0)
 			output = "slide"
 		else
-			if player.xvel == 0 then
+			if math.abs(player.xvel) < 0.5 then
 				player.cycle.run = -1
 				player.cycle.stand = (player.cycle.stand + 1) % 40
 				if player.cycle.shoot > 0 then
@@ -326,8 +326,9 @@ local determineSprite = function(player)
 	return output
 end
 
+local pwalkspeed
 local moveTick = function()
-	local i, pwalkspeed
+	local i
 	for num, player in pairs(players) do
 
 		-- falling
@@ -365,19 +366,23 @@ local moveTick = function()
 
 		-- walking
 		player.xvel = player.xvel * player.friction
-		if player.control.right then
-			player.direction = 1
-			player.xvel = player.xvel + player.moveSpeed
-		elseif player.control.left then
-			player.direction = -1
-			player.xvel = player.xvel - player.moveSpeed
-		end
 		if player.cycle.slide > 0 then
 			pwalkspeed = pwalkspeed or player.xvel
 			player.xvel = player.direction * player.slideSpeed
 		else
-			player.xvel = pwalkspeed or player.xvel
-			pwalkspeed = nil
+			if pwalkspeed then
+				player.xvel = pwalkspeed
+				pwalkspeed = nil
+			else
+				if player.control.right then
+					player.direction = 1
+					player.xvel = player.xvel + player.moveSpeed
+				end
+				if player.control.left then
+					player.direction = -1
+					player.xvel = player.xvel - player.moveSpeed
+				end
+			end
 		end
 		-- shooting
 
