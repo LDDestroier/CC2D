@@ -33,7 +33,7 @@ local keysDown = {}
 
 local tsv = function(visible)
 	if term.current().setVisible then
-		--term.current().setVisible(visible)
+		term.current().setVisible(visible)
 	end
 end
 
@@ -157,7 +157,7 @@ local newPlayer = function(name, spriteset, x, y)
 end
 
 you = 1
-players[1] = newPlayer("LDD", "stickdude", 40, 8)
+players[1] = newPlayer("LDD", "stickdude", 50, 8)
 
 -- main colision function
 local isSolid = function(x, y)
@@ -456,7 +456,7 @@ local moveTick = function()
 		end
 
 		if player.y > killY then
-			player.x = 40
+			player.x = 50
 			player.y = -80
 			player.xvel = 0
 		end
