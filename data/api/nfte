@@ -124,7 +124,7 @@ loadImageData = function(image, background) --string image
 				back = c2
 				doSkip = true
 			elseif c1 == "\n" then
-				maxX = math.max(maxX, #output[1][y] + 1)
+				maxX = math.max(maxX, #output[1][y])
 				y = y + 1
 				text, back = initText, initBack
 			else
