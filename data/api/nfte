@@ -396,6 +396,7 @@ local xflippable = {
 	["\132"] = "\136",
 	["\133"] = "\138",
 	["\134"] = "\137",
+	["\137"] = "\134",
 	["\135"] = "\139",
 	["\140"] = "\140",
 	["\141"] = "\142",
@@ -410,7 +411,8 @@ local xinvertable = {
 	["\152"] = "\155",
 	["\149"] = "\149",
 	["\150"] = "\150",
-	["\153"] = "\153"
+	["\153"] = "\153",
+	["\154"] = "\154"
 }
 for k,v in pairs(xflippable) do
 	xflippable[v] = k
@@ -418,13 +420,12 @@ end
 for k,v in pairs(xinvertable) do
 	xinvertable[v] = k
 end
-
 -- flips an image horizontally, flipping all necessary block characters
 flipX = function(image)
 	assert(checkValid(image), "Invalid image.")
 	local output = {{},{},{}}
 	for y = 1, #image[1] do
-		output[1][y] = image[1][y]:reverse():gsub(".", xflippable):gsub(".", xinvertable)
+		output[1][y] = image[1][y]:gsub(".", xinvertable):gsub(".", xflippable):reverse()
 		output[2][y] = ""
 		output[3][y] = ""
 		for x = 1, #image[1][y] do
